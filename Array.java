@@ -1,17 +1,28 @@
+import java.util.Scanner;
 class Array
 {
 public static void main(String[] args)
 {
-int[] numbers={2,-9,0,5,12,-25,22,9,8,12};
-int sum = 0;
-Double average;
-for(int number:numbers)
+Scanner s = new Scanner(System.in);
+System.out.println("Enter the size :");
+int size = s.nextInt();
+if(size<=0)
 {
-sum+=number;
+System.out.println("Array size must be a positive integer");
+return;
 }
-int arrayLength = numbers.length;
-average=((double)sum/(double)arrayLength);
-System.out.println("sum="+sum);
-System.out.println("Average="+average);
+int[] numbers = new int[size];
+System.out.println("Enter the elements:");
+for(int i=0;i<size;i++)
+{
+numbers[i] = s.nextInt();
+}
+System.out.println("Array elements are:");
+for(int i=0;i<size;i++)
+{
+
+System.out.println(numbers[i]);
 }
 }
+}
+
