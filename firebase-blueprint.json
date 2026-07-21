@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information for farmers and customers",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["farmer", "customer", "admin"] },
+        "username": { "type": "string" },
+        "bio": { "type": "string" },
+        "location": { "type": "string" },
+        "profileImage": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "phoneNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Commercial transactions between farmers and buyers",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "items": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"] },
+        "totalAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "buyerId", "sellerId", "status"]
+    },
+    "Farm": {
+      "title": "Farm Management",
+      "description": "Details about a farmer's land and irrigation",
+      "type": "object",
+      "properties": {
+        "farmId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "location": { "type": "object" },
+        "area": { "type": "number" },
+        "soilType": { "type": "string" },
+        "crops": { "type": "array" },
+        "irrigationSystem": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmId", "ownerId"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Stock levels for farm produce",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "farmerId": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "expiryDate": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "farmerId", "name", "quantity", "unit"]
+    },
+    "Follow": {
+      "title": "Relationship",
+      "description": "Follow relationship between users",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followingId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["followerId", "followingId"]
+    },
+    "Post": {
+      "title": "Social Post",
+      "description": "User social posts with images",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "caption": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorId", "imageUrl"]
+    },
+    "Product": {
+      "title": "Marketplace Product",
+      "description": "Products listed by farmers for sale",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "ownerId", "name", "price", "imageUrl"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Public and private user profiles"
+    },
+    "follows/{followId}": {
+      "schema": "Follow",
+      "description": "User follow relationships"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Marketplace orders"
+    },
+    "farms/{farmId}": {
+      "schema": "Farm",
+      "description": "Farm and land data"
+    },
+    "inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Produce stock records"
+    },
+    "posts/{postId}": {
+      "schema": "Post",
+      "description": "Social media posts"
+    },
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Marketplace product listings"
+    },
+    "usernames/{username}": {
+      "schema": "Username",
+      "description": "Username reservation records"
+    }
+  }
+}

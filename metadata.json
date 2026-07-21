@@ -1,0 +1,8 @@
+{
+  "name": "AgroConnect",
+  "description": "A comprehensive D2C and B2B agriculture platform connecting farmers directly to consumers and businesses with 24+ integrated modules for farm management, trade, and logistics.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

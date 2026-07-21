@@ -1,0 +1,166 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Usernames Collection ---
+    match /usernames/{username} {
+      function isOwnerUID() {
+        return isSignedIn() && incoming().uid == request.auth.uid;
+      }
+      allow get: if true;
+      allow create: if isOwnerUID() && incoming().keys().hasOnly(['uid']);
+      allow update: if isOwnerUID() && resource.data.uid == request.auth.uid && incoming().keys().hasOnly(['uid']);
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'role']) 
+          && data.uid == request.auth.uid
+          && data.role in ['farmer', 'customer']
+          && (data.get('username', '') == '' || data.get('username', '').matches('^[a-z0-9_]+$'))
+          && (!data.keys().contains('profileImage') || (data.profileImage is string && data.profileImage.size() <= 400000));
+      }
+
+      allow get: if true;
+      allow list: if isSignedIn(); 
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) && isValidUser(incoming()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'email', 'updatedAt', 'phoneNumber', 'username', 'bio', 
+          'location', 'profileImage', 'isPrivate', 'role',
+          'followersCount', 'followingCount', 'connectionsCount'
+        ])
+        && incoming().updatedAt == request.time;
+    }
+
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      function isValidOrder(data) {
+        return data.keys().hasAll(['orderId', 'buyerId', 'sellerId', 'status'])
+          && isValidId(data.orderId)
+          && data.buyerId == request.auth.uid
+          && (data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'])
+          && data.totalAmount is number;
+      }
+
+      allow get: if isSignedIn() && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && (
+        // Buyer can cancel or update basic info
+        (isOwner(existing().buyerId) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) && incoming().status == 'cancelled')
+        ||
+        // Seller can update status
+        (isOwner(existing().sellerId) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+      ) && incoming().updatedAt == request.time;
+    }
+
+    // --- Farms Collection ---
+    match /farms/{farmId} {
+      function isValidFarm(data) {
+        return data.keys().hasAll(['farmId', 'ownerId'])
+          && data.ownerId == request.auth.uid
+          && (data.get('area', -1) is number);
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidFarm(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(existing().ownerId) && isValidFarm(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['location', 'area', 'soilType', 'crops', 'irrigationSystem', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+    }
+
+    // --- Inventory Collection ---
+    match /inventory/{itemId} {
+      function isValidInventory(data) {
+        return data.keys().hasAll(['itemId', 'farmerId', 'name', 'quantity', 'unit'])
+          && isValidId(data.itemId)
+          && data.farmerId == request.auth.uid
+          && data.name is string && data.name.size() <= 100
+          && data.quantity is number
+          && data.unit is string && data.unit.size() <= 20;
+      }
+
+      allow list: if isSignedIn() && resource.data.farmerId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.farmerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidInventory(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isOwner(existing().farmerId) && isValidInventory(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'quantity', 'unit', 'expiryDate', 'category', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+      allow delete: if isOwner(existing().farmerId);
+    }
+
+    // --- Follows Collection ---
+    match /follows/{followId} {
+      function isValidFollow(data) {
+        return data.keys().hasAll(['followerId', 'followingId'])
+          && data.followerId == request.auth.uid
+          && data.followerId != data.followingId
+          && isValidId(data.followerId)
+          && isValidId(data.followingId);
+      }
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidFollow(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && resource.data.followerId == request.auth.uid;
+    }
+
+    // --- Posts Collection ---
+    match /posts/{postId} {
+      function isValidPost(data) {
+        return data.keys().hasAll(['postId', 'authorId', 'imageUrl'])
+          && data.authorId == request.auth.uid
+          && data.imageUrl is string && data.imageUrl.size() <= 1000000;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && isValidPost(incoming()) && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    // --- Products Collection ---
+    match /products/{productId} {
+      function isValidProduct(data) {
+        return data.keys().hasAll(['productId', 'ownerId', 'name', 'price', 'imageUrl'])
+          && data.ownerId == request.auth.uid
+          && data.price is number
+          && data.imageUrl is string && data.imageUrl.size() <= 1000000;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && isValidProduct(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(existing().ownerId) && isValidProduct(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'price', 'description', 'imageUrl', 'category', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+      allow delete: if isOwner(existing().ownerId);
+    }
+  }
+}
